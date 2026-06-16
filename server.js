@@ -8,7 +8,22 @@ const PORT = process.env.PORT || 5000;
 const API_KEY = process.env.API_KEY || 'sipcon_secure_key_123';
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.FRONTEND_URL, // e.g. https://sipcon-crm.netlify.app
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, ManyChat webhooks)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-api-key'],
+}));
 app.use(express.json());
 
 // Health check (no auth required)
@@ -31,17 +46,17 @@ const asyncHandler = (fn) => (req, res, next) =>
 app.get('/api/companies', asyncHandler(async (req, res) => {
   const data = await readSheet('companies');
   const mapped = data.map((r, i) => ({
-    company_id:     r.company_id   || r.id             || String(i + 1),
-    company_name:   r.company_name || r.name           || '',
-    industry:       r.industry     || '',
-    city:           r.city         || r.location       || '',
-    address:        r.address      || r.website        || '',
-    website:        r.website      || '',
-    gst_or_reg_no:  r.gst_or_reg_no || r.gst_no       || '',
-    source:         r.source        || r.support_tier  || '',
+    company_id: r.company_id || r.id || String(i + 1),
+    company_name: r.company_name || r.name || '',
+    industry: r.industry || '',
+    city: r.city || r.location || '',
+    address: r.address || r.website || '',
+    website: r.website || '',
+    gst_or_reg_no: r.gst_or_reg_no || r.gst_no || '',
+    source: r.source || r.support_tier || '',
     account_manager: r.account_manager || '',
-    created_at:     r.created_at   || r.created_date   || '',
-    status:         r.status       || 'Active',
+    created_at: r.created_at || r.created_date || '',
+    status: r.status || 'Active',
     ...r,
   }));
   res.json(mapped);
@@ -68,18 +83,18 @@ app.put('/api/companies/:id', asyncHandler(async (req, res) => {
 app.get('/api/contacts', asyncHandler(async (req, res) => {
   const data = await readSheet('contacts');
   const mapped = data.map((r, i) => ({
-    contact_id:      r.contact_id    || r.id           || String(i + 1),
-    company_id:      r.company_id    || '',
-    full_name:       r.full_name     || `${r.first_name || ''} ${r.last_name || ''}`.trim(),
-    first_name:      r.first_name    || '',
-    last_name:       r.last_name     || '',
-    designation:     r.designation   || r.role        || '',
-    email:           r.email         || '',
-    whatsapp_number: r.whatsapp_number || r.phone     || '',
-    callback_number: r.callback_number || r.phone     || '',
-    phone:           r.phone         || '',
-    is_primary:      r.is_primary    || 'TRUE',
-    status:          r.status        || 'Active',
+    contact_id: r.contact_id || r.id || String(i + 1),
+    company_id: r.company_id || '',
+    full_name: r.full_name || `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+    first_name: r.first_name || '',
+    last_name: r.last_name || '',
+    designation: r.designation || r.role || '',
+    email: r.email || '',
+    whatsapp_number: r.whatsapp_number || r.phone || '',
+    callback_number: r.callback_number || r.phone || '',
+    phone: r.phone || '',
+    is_primary: r.is_primary || 'TRUE',
+    status: r.status || 'Active',
     ...r,
   }));
   res.json(mapped);
@@ -105,14 +120,14 @@ app.put('/api/contacts/:id', asyncHandler(async (req, res) => {
 app.get('/api/products', asyncHandler(async (req, res) => {
   const data = await readSheet('products');
   const mapped = data.map((r, i) => ({
-    product_id:    r.product_id   || r.id           || String(i + 1),
-    machine_name:  r.machine_name || r.product_name || r.name || '',
-    product_name:  r.product_name || r.machine_name || '',
-    category:      r.category     || '',
-    description:   r.description  || '',
-    unit_price:    r.unit_price   || '',
-    active:        r.active !== undefined ? r.active : (r.status === 'Active' ? 'TRUE' : 'FALSE'),
-    status:        r.status       || 'Active',
+    product_id: r.product_id || r.id || String(i + 1),
+    machine_name: r.machine_name || r.product_name || r.name || '',
+    product_name: r.product_name || r.machine_name || '',
+    category: r.category || '',
+    description: r.description || '',
+    unit_price: r.unit_price || '',
+    active: r.active !== undefined ? r.active : (r.status === 'Active' ? 'TRUE' : 'FALSE'),
+    status: r.status || 'Active',
     ...r,
   }));
   res.json(mapped);
@@ -138,15 +153,15 @@ app.put('/api/products/:id', asyncHandler(async (req, res) => {
 app.get('/api/purchases', asyncHandler(async (req, res) => {
   const data = await readSheet('purchases');
   const mapped = data.map((r, i) => ({
-    purchase_id:    r.purchase_id   || r.id            || String(i + 1),
-    company_id:     r.company_id    || '',
-    product_id:     r.product_id    || '',
-    serial_no:      r.serial_no     || r.license_key   || '',
-    purchase_date:  r.purchase_date || '',
+    purchase_id: r.purchase_id || r.id || String(i + 1),
+    company_id: r.company_id || '',
+    product_id: r.product_id || '',
+    serial_no: r.serial_no || r.license_key || '',
+    purchase_date: r.purchase_date || '',
     warranty_expiry: r.warranty_expiry || '',
-    quantity:       r.quantity      || '',
-    total_amount:   r.total_amount  || '',
-    amc_status:     r.amc_status    || 'Active',
+    quantity: r.quantity || '',
+    total_amount: r.total_amount || '',
+    amc_status: r.amc_status || 'Active',
     ...r,
   }));
   res.json(mapped);
@@ -164,20 +179,20 @@ app.post('/api/purchases', asyncHandler(async (req, res) => {
 app.get('/api/staff', asyncHandler(async (req, res) => {
   const data = await readSheet('staff');
   const mapped = data.map((r, i) => ({
-    staff_id:         r.staff_id    || r.agent_id     || r.id || String(i + 1),
-    agent_id:         r.agent_id    || r.staff_id     || '',
-    full_name:        r.full_name   || `${r.first_name || ''} ${r.last_name || ''}`.trim(),
-    first_name:       r.first_name  || '',
-    last_name:        r.last_name   || '',
-    designation:      r.designation || r.tier         || r.specialty || '',
-    tier:             r.tier        || '',
-    specialty:        r.specialty   || '',
-    level:            r.level       || (r.tier === 'Tier 1' ? '1' : r.tier === 'Tier 2' ? '2' : '3'),
-    email:            r.email       || '',
-    phone:            r.phone       || '',
+    staff_id: r.staff_id || r.agent_id || r.id || String(i + 1),
+    agent_id: r.agent_id || r.staff_id || '',
+    full_name: r.full_name || `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+    first_name: r.first_name || '',
+    last_name: r.last_name || '',
+    designation: r.designation || r.tier || r.specialty || '',
+    tier: r.tier || '',
+    specialty: r.specialty || '',
+    level: r.level || (r.tier === 'Tier 1' ? '1' : r.tier === 'Tier 2' ? '2' : '3'),
+    email: r.email || '',
+    phone: r.phone || '',
     products_handled: r.products_handled || '',
-    active:           r.active !== undefined ? r.active : (r.status === 'Active' ? 'TRUE' : 'FALSE'),
-    status:           r.status      || 'Active',
+    active: r.active !== undefined ? r.active : (r.status === 'Active' ? 'TRUE' : 'FALSE'),
+    status: r.status || 'Active',
     ...r,
   }));
   res.json(mapped);
@@ -204,28 +219,28 @@ app.put('/api/staff/:id', asyncHandler(async (req, res) => {
 app.get('/api/tickets', asyncHandler(async (req, res) => {
   const data = await readSheet('tickets');
   const mapped = data.map((r, i) => ({
-    ticket_id:        r.ticket_id     || r.id             || String(i + 1),
-    company_id:       r.company_id    || '',
-    contact_id:       r.contact_id    || '',
-    product_id:       r.product_id    || '',
-    query_text:       r.query_text    || r.description    || r.subject || '',
-    subject:          r.subject       || '',
-    status:           r.status        || 'Open',
-    priority:         r.priority      || 'Medium',
-    type:             r.type          || '',
-    current_level:    r.current_level || '1',
-    assigned_to:      r.assigned_to   || '',
-    csat_rating:      r.csat_rating   || '',
-    created_at:       r.created_at    || r.created_date   || '',
+    ticket_id: r.ticket_id || r.id || String(i + 1),
+    company_id: r.company_id || '',
+    contact_id: r.contact_id || '',
+    product_id: r.product_id || '',
+    query_text: r.query_text || r.description || r.subject || '',
+    subject: r.subject || '',
+    status: r.status || 'Open',
+    priority: r.priority || 'Medium',
+    type: r.type || '',
+    current_level: r.current_level || '1',
+    assigned_to: r.assigned_to || '',
+    csat_rating: r.csat_rating || '',
+    created_at: r.created_at || r.created_date || '',
     first_response_at: r.first_response_at || '',
-    resolved_at:      r.resolved_at   || r.closed_date    || '',
-    due_date:         r.due_date      || '',
-    resolution:       r.resolution    || '',
-    tags:             r.tags          || '',
-    time_spent:       r.time_spent    || '',
+    resolved_at: r.resolved_at || r.closed_date || '',
+    due_date: r.due_date || '',
+    resolution: r.resolution || '',
+    tags: r.tags || '',
+    time_spent: r.time_spent || '',
     handled_successfully: r.handled_successfully || (r.status === 'Closed' ? 'TRUE' : 'FALSE'),
-    reopened:         r.reopened      || 'FALSE',
-    notes:            r.notes         || r.resolution     || '',
+    reopened: r.reopened || 'FALSE',
+    notes: r.notes || r.resolution || '',
     ...r,
   }));
   res.json(mapped);
@@ -257,19 +272,19 @@ app.put('/api/tickets/:id', asyncHandler(async (req, res) => {
 app.get('/api/call_logs', asyncHandler(async (req, res) => {
   const data = await readSheet('call_logs');
   const mapped = data.map((r, i) => ({
-    log_id:        r.log_id    || r.call_id    || r.id   || String(i + 1),
-    call_id:       r.call_id   || '',
-    ticket_id:     r.ticket_id || '',
-    level:         r.level     || '1',
-    staff_called:  r.staff_called || r.agent_id || '',
-    agent_id:      r.agent_id  || '',
-    call_status:   r.call_status || r.type     || 'Answered',
-    type:          r.type       || '',
-    timestamp:     r.timestamp || r.date       || '',
-    date:          r.date       || '',
-    duration:      r.duration_mins || r.duration || '',
-    outcome:       r.outcome    || r.notes     || '',
-    notes:         r.notes      || '',
+    log_id: r.log_id || r.call_id || r.id || String(i + 1),
+    call_id: r.call_id || '',
+    ticket_id: r.ticket_id || '',
+    level: r.level || '1',
+    staff_called: r.staff_called || r.agent_id || '',
+    agent_id: r.agent_id || '',
+    call_status: r.call_status || r.type || 'Answered',
+    type: r.type || '',
+    timestamp: r.timestamp || r.date || '',
+    date: r.date || '',
+    duration: r.duration_mins || r.duration || '',
+    outcome: r.outcome || r.notes || '',
+    notes: r.notes || '',
     ...r,
   }));
   res.json(mapped);
@@ -285,23 +300,37 @@ app.post('/api/call_logs', asyncHandler(async (req, res) => {
 
 // ─── LEADS (gid=475662632) ────────────────────────────────────────────────────
 // Sheet cols: Lead ID, Company Name, Contact Name, Email, Phone, Source, Status
+// Leads are identified and linked to companies by COMPANY NAME (not phone number)
 app.get('/api/leads', asyncHandler(async (req, res) => {
   const data = await readSheet('leads');
   const mapped = data.map((r, i) => ({
-    lead_id:          r.lead_id    || r.id            || String(i + 1),
-    name:             r.name       || r.contact_name  || '',
-    contact_name:     r.contact_name || r.name        || '',
-    company_name:     r.company_name || '',
-    email:            r.email      || '',
-    whatsapp_number:  r.whatsapp_number || r.phone    || '',
-    phone:            r.phone      || '',
-    machine_interest: r.machine_interest || r.source  || '',
-    source:           r.source     || '',
-    converted:        r.converted  || (r.status === 'Converted' ? 'TRUE' : 'FALSE'),
-    status:           r.status     || 'New',
-    created_at:       r.created_at || '',
+    lead_id: r.lead_id || r.id || String(i + 1),
+    // Contact info — name comes from Contact Name column
+    name: r.contact_name || r.name || '',
+    contact_name: r.contact_name || r.name || '',
+    // Company name is the PRIMARY key for matching to existing companies
+    company_name: r.company_name || '',
+    email: r.email || '',
+    // Phone stored as-is; company matching is done by company_name, not phone
+    phone: r.phone || r.whatsapp_number || '',
+    whatsapp_number: r.phone || r.whatsapp_number || '',
+    source: r.source || r.machine_interest || '',
+    machine_interest: r.machine_interest || r.source || '',
+    status: r.status || 'New',
+    converted: r.converted !== undefined
+      ? r.converted
+      : (r.status === 'Converted' ? 'TRUE' : 'FALSE'),
+    created_at: r.created_at || '',
     ...r,
   }));
+
+  // Optional filter: ?company_name=Startup+Inc
+  const { company_name } = req.query;
+  if (company_name) {
+    const lower = company_name.trim().toLowerCase();
+    return res.json(mapped.filter(l => (l.company_name || '').toLowerCase() === lower));
+  }
+
   res.json(mapped);
 }));
 
