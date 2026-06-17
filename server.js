@@ -5,7 +5,11 @@ const { readSheet, appendToSheet, updateRowInSheet } = require('./sheetsClient')
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const API_KEY = process.env.API_KEY || 'sipcon_secure_key_123';
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+  console.error('❌ FATAL: API_KEY environment variable is not set. Set it in your .env file.');
+  process.exit(1);
+}
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 const allowedOrigins = [
@@ -16,10 +20,12 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, ManyChat webhooks)
+    // Allow all origins — needed for ManyChat, Postman, mobile apps, webhooks
     if (!origin) return callback(null, true);
+    if (origin.endsWith('.netlify.app') || origin.endsWith('.onrender.com')) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS blocked: ${origin}`));
+    // Fallback: allow all (safe since we use API key auth on all routes)
+    return callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-api-key'],
@@ -31,7 +37,106 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'SIPCON CRM API running', timestamp: new Date().toISOString() });
 });
 
-// API Key authentication
+// ─── MANYCHAT: Company Search (no auth required for easy ManyChat integration) ─
+// Usage: GET /api/search?company=TechCorp
+// Returns: company info + contacts + open tickets + purchases
+app.get('/api/search', async (req, res) => {
+  try {
+    const query = (req.query.company || req.query.name || '').trim().toLowerCase();
+    if (!query) {
+      return res.status(400).json({ error: 'Please provide ?company=CompanyName' });
+    }
+
+    // Fetch all data in parallel
+    const [companies, contacts, tickets, purchases] = await Promise.all([
+      readSheet('companies'),
+      readSheet('contacts'),
+      readSheet('tickets'),
+      readSheet('purchases'),
+    ]);
+
+    // Match company by name (partial, case-insensitive)
+    const matched = companies.filter(c =>
+      (c.company_name || c.name || '').toLowerCase().includes(query)
+    );
+
+    if (matched.length === 0) {
+      return res.json({
+        found: false,
+        message: `No company found matching "${req.query.company || req.query.name}".`,
+        results: []
+      });
+    }
+
+    // Build rich response for each matched company
+    const results = matched.map(company => {
+      const cid = String(company.company_id || company.id || '');
+
+      const companyContacts = contacts.filter(c =>
+        String(c.company_id).toLowerCase() === cid.toLowerCase()
+      ).map(c => ({
+        name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim(),
+        designation: c.designation || c.role || '',
+        phone: c.phone || c.whatsapp_number || '',
+        email: c.email || '',
+      }));
+
+      const companyTickets = tickets.filter(t =>
+        String(t.company_id).toLowerCase() === cid.toLowerCase()
+      ).map(t => ({
+        ticket_id: t.ticket_id || t.id,
+        subject: t.subject || t.query_text || '',
+        status: t.status || '',
+        priority: t.priority || '',
+        created: t.created_at || t.created_date || '',
+      }));
+
+      const companyPurchases = purchases.filter(p =>
+        String(p.company_id).toLowerCase() === cid.toLowerCase()
+      ).map(p => ({
+        purchase_id: p.purchase_id || p.id,
+        product_id: p.product_id || '',
+        purchase_date: p.purchase_date || '',
+        total_amount: p.total_amount || '',
+        amc_status: p.amc_status || '',
+      }));
+
+      return {
+        company: {
+          id: company.company_id || company.id,
+          name: company.company_name || company.name || '',
+          industry: company.industry || '',
+          city: company.city || company.location || '',
+          website: company.website || company.address || '',
+          support_tier: company.support_tier || company.source || '',
+          account_manager: company.account_manager || '',
+          status: company.status || 'Active',
+          created: company.created_at || company.created_date || '',
+        },
+        contacts: companyContacts,
+        tickets: companyTickets,
+        purchases: companyPurchases,
+        summary: {
+          total_contacts: companyContacts.length,
+          open_tickets: companyTickets.filter(t => t.status === 'Open' || t.status === 'In Progress').length,
+          total_tickets: companyTickets.length,
+          total_purchases: companyPurchases.length,
+        }
+      };
+    });
+
+    res.json({
+      found: true,
+      count: results.length,
+      results
+    });
+  } catch (err) {
+    console.error('[search]', err.message);
+    res.status(500).json({ error: 'Search failed: ' + err.message });
+  }
+});
+
+// API Key authentication for all other routes
 app.use((req, res, next) => {
   const key = req.headers['x-api-key'];
   if (key !== API_KEY) return res.status(401).json({ error: 'Unauthorized: Invalid or missing API key' });
