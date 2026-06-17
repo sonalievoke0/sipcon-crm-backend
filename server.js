@@ -101,7 +101,7 @@ app.post('/api/search', async (req, res) => {
         );
         const machineName = product
           ? (product.machine_name || product.product_name || product.name || '')
-          : (p.product_id || '');
+          : (p.product_name || '');
 
         return {
           purchase_id: p.purchase_id || p.id,
