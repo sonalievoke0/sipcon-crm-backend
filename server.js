@@ -39,9 +39,9 @@ app.get('/api/health', (req, res) => {
 
 // Usage: GET /api/search?company=TechCorp
 // Returns: company info + contacts + open tickets + purchases with machine names
-app.get('/api/search', async (req, res) => {
+app.post('/api/search', async (req, res) => {
   try {
-    const query = (req.query.company || req.query.name || '').trim().toLowerCase();
+    const query = (req.body.company || req.body.name || '').trim().lowercase();
     if (!query) {
       return res.status(400).json({ error: 'Please provide ?company=CompanyName' });
     }
