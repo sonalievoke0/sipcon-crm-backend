@@ -37,9 +37,8 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'SIPCON CRM API running', timestamp: new Date().toISOString() });
 });
 
-// ─── MANYCHAT: Company Search (no auth required for easy ManyChat integration) ─
 // Usage: GET /api/search?company=TechCorp
-// Returns: company info + contacts + open tickets + purchases
+// Returns: company info + contacts + open tickets + purchases with machine names
 app.get('/api/search', async (req, res) => {
   try {
     const query = (req.query.company || req.query.name || '').trim().toLowerCase();
@@ -47,12 +46,13 @@ app.get('/api/search', async (req, res) => {
       return res.status(400).json({ error: 'Please provide ?company=CompanyName' });
     }
 
-    // Fetch all data in parallel
-    const [companies, contacts, tickets, purchases] = await Promise.all([
+    // Fetch all data in parallel (including products for machine names)
+    const [companies, contacts, tickets, purchases, products] = await Promise.all([
       readSheet('companies'),
       readSheet('contacts'),
       readSheet('tickets'),
       readSheet('purchases'),
+      readSheet('products'),
     ]);
 
     // Match company by name (partial, case-insensitive)
@@ -91,15 +91,39 @@ app.get('/api/search', async (req, res) => {
         created: t.created_at || t.created_date || '',
       }));
 
+      // Join purchases with product sheet to get machine_name
       const companyPurchases = purchases.filter(p =>
         String(p.company_id).toLowerCase() === cid.toLowerCase()
-      ).map(p => ({
-        purchase_id: p.purchase_id || p.id,
-        product_id: p.product_id || '',
-        purchase_date: p.purchase_date || '',
-        total_amount: p.total_amount || '',
-        amc_status: p.amc_status || '',
-      }));
+      ).map(p => {
+        const pid = String(p.product_id || '').toLowerCase();
+        const product = products.find(pr =>
+          String(pr.product_id || pr.id || '').toLowerCase() === pid
+        );
+        const machineName = product
+          ? (product.machine_name || product.product_name || product.name || '')
+          : (p.product_id || '');
+
+        return {
+          purchase_id: p.purchase_id || p.id,
+          product_id: p.product_id || '',
+          machine_name: machineName,
+          purchase_date: p.purchase_date || '',
+          quantity: p.quantity || '1',
+          total_amount: p.total_amount || '',
+          amc_status: p.amc_status || '',
+          serial_no: p.serial_no || '',
+          warranty_expiry: p.warranty_expiry || '',
+        };
+      });
+
+      // Build machines summary: unique machine names + total count
+      const machineMap = {};
+      companyPurchases.forEach(p => {
+        const name = p.machine_name || 'Unknown';
+        const qty = parseInt(p.quantity, 10) || 1;
+        machineMap[name] = (machineMap[name] || 0) + qty;
+      });
+      const machines = Object.entries(machineMap).map(([name, count]) => ({ name, count }));
 
       return {
         company: {
@@ -116,11 +140,14 @@ app.get('/api/search', async (req, res) => {
         contacts: companyContacts,
         tickets: companyTickets,
         purchases: companyPurchases,
+        machines,                           // ← [ { name: "Printer X", count: 2 }, ... ]
         summary: {
           total_contacts: companyContacts.length,
           open_tickets: companyTickets.filter(t => t.status === 'Open' || t.status === 'In Progress').length,
           total_tickets: companyTickets.length,
           total_purchases: companyPurchases.length,
+          total_machines: companyPurchases.reduce((sum, p) => sum + (parseInt(p.quantity, 10) || 1), 0),
+          machine_names: machines.map(m => m.name),
         }
       };
     });
@@ -135,6 +162,7 @@ app.get('/api/search', async (req, res) => {
     res.status(500).json({ error: 'Search failed: ' + err.message });
   }
 });
+
 
 // API Key authentication for all other routes
 app.use((req, res, next) => {
