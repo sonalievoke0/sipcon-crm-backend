@@ -99,11 +99,17 @@ app.post('/api/search', async (req, res) => {
         const product = products.find(pr => {
           const normalizedId = String(pr.product_id || pr.id || '').toLowerCase();
           const normalizedName = String(pr.product_name || pr.machine_name || pr.name || '').toLowerCase();
-          return normalizedId === pid || normalizedName === pid;
+          return (pid && normalizedId === pid) || (pid && normalizedName === pid);
         });
-        const machineName = product
-          ? (product.product_name || product.machine_name || product.name || '')
-          : (p.product_name || p.machine_name || '');
+        
+        // Determine machine name with proper fallback logic
+        let machineName = '';
+        if (product) {
+          machineName = product.product_name || product.machine_name || product.name || '';
+        } else {
+          // Fallback: use purchase-level data, then product_id as last resort
+          machineName = p.product_name || p.machine_name || (pid ? String(p.product_id || '') : '');
+        }
 
         return {
           purchase_id: p.purchase_id || p.id,
@@ -121,7 +127,9 @@ app.post('/api/search', async (req, res) => {
       // Build machines summary: unique machine names + total count
       const machineMap = {};
       companyPurchases.forEach(p => {
-        const name = p.machine_name || 'Unknown';
+        // Use machine_name if available, skip if truly empty to avoid "Unknown" entries
+        const name = (p.machine_name || '').trim();
+        if (!name) return; // Skip entries without a machine name
         const qty = parseInt(p.quantity, 10) || 1;
         machineMap[name] = (machineMap[name] || 0) + qty;
       });
