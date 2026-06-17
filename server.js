@@ -142,10 +142,11 @@ app.post('/api/search', async (req, res) => {
       };
     });
 
+    const machines = [...new Set(results.flatMap(r => r.summary.machine_names))].filter(Boolean);
+
     res.json({
-      found: true,
       count: results.length,
-      results
+      machines
     });
   } catch (err) {
     console.error('[search]', err.message);
