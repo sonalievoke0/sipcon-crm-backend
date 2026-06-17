@@ -135,28 +135,8 @@ app.post('/api/search', async (req, res) => {
       });
       const machines = Object.entries(machineMap).map(([name, count]) => ({ name, count }));
 
-      return {
-        company: {
-          id: company.company_id || company.id,
-          name: company.company_name || company.name || '',
-          industry: company.industry || '',
-          city: company.city || company.location || '',
-          website: company.website || company.address || '',
-          support_tier: company.support_tier || company.source || '',
-          account_manager: company.account_manager || '',
-          status: company.status || 'Active',
-          created: company.created_at || company.created_date || '',
-        },
-        contacts: companyContacts,
-        tickets: companyTickets,
-        purchases: companyPurchases,
-        machines,                           // ← [ { name: "Printer X", count: 2 }, ... ]
+      return {                           
         summary: {
-          total_contacts: companyContacts.length,
-          open_tickets: companyTickets.filter(t => t.status === 'Open' || t.status === 'In Progress').length,
-          total_tickets: companyTickets.length,
-          total_purchases: companyPurchases.length,
-          total_machines: companyPurchases.reduce((sum, p) => sum + (parseInt(p.quantity, 10) || 1), 0),
           machine_names: machines.map(m => m.name),
         }
       };
