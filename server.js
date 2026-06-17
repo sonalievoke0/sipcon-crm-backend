@@ -102,13 +102,13 @@ app.post('/api/search', async (req, res) => {
           return (pid && normalizedId === pid) || (pid && normalizedName === pid);
         });
         
-        // Determine machine name with proper fallback logic
+        // Determine machine name: prioritize product sheet data
         let machineName = '';
         if (product) {
           machineName = product.product_name || product.machine_name || product.name || '';
         } else {
-          // Fallback: use purchase-level data, then product_id as last resort
-          machineName = p.product_name || p.machine_name || (pid ? String(p.product_id || '') : '');
+          // Fallback: use purchase-level product_name/machine_name only (not product_id)
+          machineName = p.product_name || p.machine_name || '';
         }
 
         return {
