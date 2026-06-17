@@ -95,13 +95,15 @@ app.post('/api/search', async (req, res) => {
       const companyPurchases = purchases.filter(p =>
         String(p.company_id).toLowerCase() === cid.toLowerCase()
       ).map(p => {
-        const pid = String(p.product_id || '').toLowerCase();
-        const product = products.find(pr =>
-          String(pr.product_id || pr.id || '').toLowerCase() === pid
-        );
+        const pid = String(p.product_id || p.product_name || p.machine_name || '').toLowerCase();
+        const product = products.find(pr => {
+          const normalizedId = String(pr.product_id || pr.id || '').toLowerCase();
+          const normalizedName = String(pr.product_name || pr.machine_name || pr.name || '').toLowerCase();
+          return normalizedId === pid || normalizedName === pid;
+        });
         const machineName = product
-          ? (product.machine_name || product.product_name || product.name || '')
-          : (p.product_id || '');
+          ? (product.product_name || product.machine_name || product.name || '')
+          : (p.product_name || p.machine_name || '');
 
         return {
           purchase_id: p.purchase_id || p.id,
@@ -254,8 +256,8 @@ app.get('/api/products', asyncHandler(async (req, res) => {
   const data = await readSheet('products');
   const mapped = data.map((r, i) => ({
     product_id: r.product_id || r.id || String(i + 1),
-    machine_name: r.machine_name || r.product_name || r.name || '',
-    product_name: r.product_name || r.machine_name || '',
+    machine_name: r.product_name || r.machine_name || r.name || '',
+    product_name: r.product_name || r.machine_name || r.name || '',
     category: r.category || '',
     description: r.description || '',
     unit_price: r.unit_price || '',
