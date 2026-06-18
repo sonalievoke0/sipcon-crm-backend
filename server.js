@@ -171,7 +171,7 @@ app.get('/api/machines', async (req, res, next) => {
 app.post('/api/search', async (req, res) => {
   try {
 
-    console.log(`Received search request for company: ${req.params.companyName}`);
+    console.log(`Received search request for company: ${req.body.companyName}`);
     const companyName = req.params.companyName || req.body.companyName;
 
     const [rows] = await db.execute(
