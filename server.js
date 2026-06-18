@@ -168,7 +168,7 @@ app.get('/api/machines', async (req, res, next) => {
   }
 });
 
-app.get('/api/search/:companyName', async (req, res) => {
+app.post('/api/search/:companyName', async (req, res) => {
   try {
 
     console.log(`Received search request for company: ${req.params.companyName}`);
