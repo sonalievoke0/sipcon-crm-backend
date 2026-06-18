@@ -174,12 +174,10 @@ app.post('/api/search', async (req, res) => {
     console.log(`Received search request for company: ${req.body.companyName}`);
     const companyName = req.params.companyName || req.body.companyName;
 
-    const [rows] = await db.execute(
-      `
-        SELECT
-          machine_no,
-          machine_details,
-          model
+    const [rows] = await db.execute( 
+      ` 
+        SELECT 
+          machine_details 
         FROM machines
         WHERE company_name LIKE ?
         ORDER BY machine_no
@@ -231,12 +229,10 @@ app.get('/api/search-company', async (req, res) => {
     }
 
     console.log(`Attempting to search for company '${company}' in the database...`);
-    const [rows] = await db.execute(
-      `
-      SELECT
-        machine_no,
-        machine_details,
-        model
+    const [rows] = await db.execute( 
+      ` 
+      SELECT 
+        machine_details 
       FROM machines
       WHERE company_name LIKE ?
       ORDER BY machine_no
