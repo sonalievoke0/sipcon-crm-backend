@@ -177,10 +177,10 @@ app.post('/api/search', async (req, res) => {
     const [rows] = await db.execute( 
       ` 
         SELECT 
-          machine_details 
+        machine_details 
         FROM machines
         WHERE company_name LIKE ?
-        ORDER BY machine_no
+        
       `,
       [`%${companyName}%`]
     );
@@ -235,7 +235,7 @@ app.get('/api/search-company', async (req, res) => {
         machine_details 
       FROM machines
       WHERE company_name LIKE ?
-      ORDER BY machine_no
+
       `,
       [`%${company}%`]
     );
