@@ -176,7 +176,7 @@ app.post('/api/search', async (req, res) => {
 
     const [rows] = await db.execute( 
       ` 
-        SELECT 
+        SELECT  DISTINCT
         machine_details 
         FROM machines
         WHERE company_name LIKE ?
