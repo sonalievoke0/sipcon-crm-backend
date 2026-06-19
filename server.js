@@ -260,7 +260,7 @@ app.get('/api/search-company', async (req, res) => {
 
 });
 
-app.post('/api/upload-machines', async (req, res) => {
+app.post('/api/add-machines', async (req, res) => {
   try {
     const { company_name, machine_details } = req.body;
 
