@@ -260,6 +260,50 @@ app.get('/api/search-company', async (req, res) => {
 
 });
 
+app.post('/api/upload-machines', async (req, res) => {
+  try {
+    const { company_name, machine_details } = req.body;
+
+    // Validation
+    if (!company_name || !machine_details) {
+      return res.status(400).json({
+        success: false,
+        message: 'company_name and machine_details are required'
+      });
+    }
+    const [rows] = await db.execute(`
+  SELECT MAX(machine_serial_no) AS lastSerial
+  FROM machines
+`);
+
+const nextSerial = (rows[0].lastSerial || 7122) + 1;
+
+    const [result] = await db.execute(
+      `
+      INSERT INTO machines
+      (machine_serial_no, company_name, machine_details)
+      VALUES (?,?, ?)
+      `,
+      [nextSerial,company_name, machine_details]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Machine added successfully',
+      insertedId: result.insertId
+    });
+
+  } catch (err) {
+    console.error('Insert Error:', err);
+
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+
 // Global unhandled promise rejection handler
 process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
