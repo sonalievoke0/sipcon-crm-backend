@@ -194,13 +194,17 @@ app.post('/api/search', async (req, res) => {
       console.log('📤 Response:', errorRes);
       return res.status(404).json(errorRes);
     }
+
+    const machineList = rows
+   .map((row, index) => `${index + 1}. ${row.machine_details}`)
+   .join('\n');
    
 
     const responseData = {
       success: true,
       company: companyName,
       totalMachines: rows.length,
-      machines: rows.map(row => row.machine_details).join(', ')
+      machines: machineList
     };
     console.log(`📤 Search Result for ${companyName}:`, responseData);
     res.json(responseData);
