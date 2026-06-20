@@ -199,7 +199,7 @@ app.post('/api/search', async (req, res) => {
       success: true,
       company: companyName,
       totalMachines: rows.length,
-      machines: rows
+      machines: rows.map(row => row.machine_details)
     };
     console.log(`📤 Search Result for ${companyName}:`, responseData);
     res.json(responseData);
@@ -277,6 +277,7 @@ app.post('/api/add-machines', async (req, res) => {
 `);
 
 const nextSerial = (rows[0].lastSerial || 7122) + 1;
+console.log("Next Serial:", nextSerial);
 
     const [result] = await db.execute(
       `
