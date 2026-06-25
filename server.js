@@ -35,6 +35,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'x-api-key'],
 }));
+
 app.use(express.json());
 
 // Health check (no auth required)
@@ -267,13 +268,13 @@ app.get('/api/search-company', async (req, res) => {
 
 app.post('/api/add-machines', async (req, res) => {
   try {
-    const { company_name, machine_details } = req.body;
+    const { company_name, machine_details , customer_name } = req.body;
 
     // Validation
-    if (!company_name || !machine_details) {
+    if (!company_name || !machine_details || !customer_name) {
       return res.status(400).json({
         success: false,
-        message: 'company_name and machine_details are required'
+        message: 'company_name, machine_details, and customer_name are required'
       });
     }
     const [rows] = await db.execute(`
@@ -287,10 +288,10 @@ console.log("Next Serial:", nextSerial);
     const [result] = await db.execute(
       `
       INSERT INTO machines
-      (machine_serial_no, company_name, machine_details)
-      VALUES (?,?, ?)
+      (machine_serial_no, company_name, machine_details, name)
+      VALUES (?,?, ?, ?)
       `,
-      [nextSerial,company_name, machine_details]
+      [nextSerial,company_name, machine_details, customer_name]
     );
 
     res.status(201).json({
