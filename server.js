@@ -343,35 +343,46 @@ app.post('/api/add-ticket', async (req, res) => {
       });
     }
 
-    // Insert ticket
-    const [result] = await db.execute(
-      `
-      INSERT INTO Tickets
-      (
-        Ticket_ID,
-        Company,
-        \`Query\`,
-        machine,
-        Created,
-        Status
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
-      `,
-      [
-        Ticket_ID,
-        Company,
-        Query,
-        machine,
-        Created,
-        Status
-      ]
-    );
+   const [result] = await db.execute(
+  `
+  INSERT INTO Tickets
+  (
+    Ticket_ID,
+    Company,
+    \`Query\`,
+    machine,
+    Created,
+    Status
+  )
+  VALUES (?, ?, ?, ?, ?, ?)
+  `,
+  [
+    Ticket_ID,
+    Company,
+    Query,
+    machine,
+    Created,
+    Status
+  ]
+);
 
-    res.status(201).json({
-      success: true,
-      message: 'Ticket created successfully.',
-      insertedId: result.insertId
-    });
+// Create corresponding Call Log entry
+await db.execute(
+  `
+  INSERT INTO callLogs
+  (
+    Ticket_ID
+  )
+  VALUES (?)
+  `,
+  [Ticket_ID]
+);
+
+res.status(201).json({
+  success: true,
+  message: 'Ticket and Call Log created successfully.',
+  insertedId: result.insertId
+});
 
   } catch (err) {
     console.error('Ticket Insert Error:', err);
@@ -451,6 +462,99 @@ app.get('/api/call-logs/:ticketId', async (req, res) => {
 
   } catch (err) {
     console.error('Fetch Call Logs Error:', err);
+
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+
+
+
+
+// Update Call Log (First / Second / Third)
+app.put('/api/update-call-log', async (req, res) => {
+  try {
+    const {
+      Ticket_ID,
+      call,
+      callDate,
+      callStatus,
+      duration
+    } = req.body;
+
+    if (!Ticket_ID || !call) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ticket_ID and call are required.'
+      });
+    }
+
+    let query = '';
+    let values = [];
+
+    switch (call.toLowerCase()) {
+      case 'first':
+        query = `
+          UPDATE callLogs
+          SET
+            firstCallDate = ?,
+            firstCallStatus = ?,
+            firstDuration = ?
+          WHERE Ticket_ID = ?
+        `;
+        values = [callDate, callStatus, duration, Ticket_ID];
+        break;
+
+      case 'second':
+        query = `
+          UPDATE callLogs
+          SET
+            secondCallDate = ?,
+            secondCallStatus = ?,
+            secondDuration = ?
+          WHERE Ticket_ID = ?
+        `;
+        values = [callDate, callStatus, duration, Ticket_ID];
+        break;
+
+      case 'third':
+        query = `
+          UPDATE callLogs
+          SET
+            thirdCallDate = ?,
+            thirdCallStatus = ?,
+            thirdDuration = ?
+          WHERE Ticket_ID = ?
+        `;
+        values = [callDate, callStatus, duration, Ticket_ID];
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          message: 'call must be First, Second or Third.'
+        });
+    }
+
+    const [result] = await db.execute(query, values);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No record found for the given Ticket_ID.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `${call} call updated successfully.`
+    });
+
+  } catch (err) {
+    console.error('Update Call Log Error:', err);
 
     res.status(500).json({
       success: false,
