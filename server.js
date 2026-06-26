@@ -310,6 +310,155 @@ console.log("Next Serial:", nextSerial);
   }
 });
 
+// Add New Ticket
+app.post('/api/add-ticket', async (req, res) => {
+  try {
+    const {
+      Ticket_ID,
+      Company,
+      Query,
+      machine,
+      Created,
+      Status
+    } = req.body;
+
+    // Validation
+    if (!Ticket_ID || !Company || !Query || !machine || !Created || !Status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ticket_ID, Company, Query, machine, Created and Status are required.'
+      });
+    }
+
+    // Check if Ticket ID already exists
+    const [existing] = await db.execute(
+      'SELECT Ticket_ID FROM Tickets WHERE Ticket_ID = ?',
+      [Ticket_ID]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Ticket ID already exists.'
+      });
+    }
+
+    // Insert ticket
+    const [result] = await db.execute(
+      `
+      INSERT INTO Tickets
+      (
+        Ticket_ID,
+        Company,
+        \`Query\`,
+        machine,
+        Created,
+        Status
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [
+        Ticket_ID,
+        Company,
+        Query,
+        machine,
+        Created,
+        Status
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Ticket created successfully.',
+      insertedId: result.insertId
+    });
+
+  } catch (err) {
+    console.error('Ticket Insert Error:', err);
+
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// Get All Tickets
+app.get('/api/tickets', async (req, res) => {
+  try {
+    const [rows] = await db.execute(`
+      SELECT
+        Ticket_ID,
+        Company,
+        \`Query\`,
+        machine,
+        Created,
+        Status
+      FROM Tickets
+      ORDER BY Created DESC
+    `);
+
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows
+    });
+
+  } catch (err) {
+    console.error('Fetch Tickets Error:', err);
+
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+
+// Get Call Logs by Ticket_ID
+app.get('/api/call-logs/:ticketId', async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+
+    if (!ticketId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ticket_ID is required.'
+      });
+    }
+
+    const [rows] = await db.execute(
+      `
+      SELECT *
+      FROM callLogs
+      WHERE Ticket_ID = ?
+      `,
+      [ticketId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No call logs found for this Ticket_ID.'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows
+    });
+
+  } catch (err) {
+    console.error('Fetch Call Logs Error:', err);
+
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
 
 // Global unhandled promise rejection handler
 process.on('unhandledRejection', (reason, promise) => {
@@ -334,6 +483,8 @@ app.use((err, req, res, next) => {
   console.log('📤 Error Response:', errorResponse);
   res.status(500).json(errorResponse);
 });
+
+
 
 app.listen(PORT, async () => {
   console.log(`✅ SIPCON CRM Backend running on http://localhost:${PORT}`);
