@@ -38,11 +38,47 @@ app.use(cors({
 
 app.use(express.json());
 
-// Health check (no auth required)
-app.get('/api/health', (req, res) => {
-  const response = { status: 'ok', message: 'SIPCON CRM API running', timestamp: new Date().toISOString() };
+// Health check (no auth required) — tests all critical API dependencies
+app.get('/api/health', async (req, res) => {
+  const checks = {
+    server: { status: 'ok', uptime: process.uptime() },
+    database: { status: 'unknown' },
+    tables: {}
+  };
+
+  // Test database connectivity
+  try {
+    const [dbResult] = await db.query('SELECT 1 AS connected');
+    checks.database.status = dbResult[0].connected === 1 ? 'ok' : 'error';
+  } catch (err) {
+    checks.database.status = 'error';
+    checks.database.error = err.message;
+  }
+
+  // Test each table accessibility
+  const tables = ['machines', 'Tickets', 'callLogs'];
+  for (const table of tables) {
+    try {
+      const [rows] = await db.query(`SELECT COUNT(*) AS count FROM \`${table}\``);
+      checks.tables[table] = { status: 'ok', rowCount: rows[0].count };
+    } catch (err) {
+      checks.tables[table] = { status: 'error', error: err.message };
+    }
+  }
+
+  const allOk = checks.database.status === 'ok' &&
+    Object.values(checks.tables).every(t => t.status === 'ok');
+
+  const statusCode = allOk ? 200 : 503;
+  const response = {
+    status: allOk ? 'ok' : 'degraded',
+    message: allOk ? 'SIPCON CRM API running' : 'Some services are degraded',
+    timestamp: new Date().toISOString(),
+    checks
+  };
+
   console.log('📤 Health Check Response:', response);
-  res.json(response);
+  res.status(statusCode).json(response);
 });
 
 
@@ -171,17 +207,20 @@ app.get('/api/machines', async (req, res, next) => {
 
 app.post('/api/search', async (req, res) => {
   try {
-
     console.log(`Received search request for company: ${req.body.companyName}`);
+
     const companyName = req.params.companyName || req.body.companyName;
 
-    const [rows] = await db.execute( 
-      ` 
-        SELECT  DISTINCT
-        machine_details 
-        FROM machines
-        WHERE company_name LIKE ?
-        
+    const [rows] = await db.execute(
+      `
+      SELECT DISTINCT
+        name,
+        machine_details,
+        DOI,
+        mail_ID,
+        contact_number
+      FROM machines
+      WHERE company_name LIKE ?
       `,
       [`%${companyName}%`]
     );
@@ -191,33 +230,41 @@ app.post('/api/search', async (req, res) => {
         success: false,
         message: 'Company not found'
       };
+
       console.log(`🔎 Search for company '${companyName}' returned 0 results.`);
       console.log('📤 Response:', errorRes);
+
       return res.status(404).json(errorRes);
     }
 
+    // Machine list with DOI
     const machineList = rows
-   .map((row, index) => `${index + 1}. ${row.machine_details}`)
-   .join('\n');
-   
+      .map((row, index) => `${index + 1}. ${row.machine_details} - ${row.DOI}`)
+      .join('\n');
 
-    const responseData = {
+    const response = `
+Company: ${companyName}
+
+Name: ${rows[0].name}
+Mail ID: ${rows[0].mail_ID}
+Contact Number: ${rows[0].contact_number}
+
+Machines:
+${machineList}
+`.trim();
+
+    res.json({
       success: true,
-      company: companyName,
-      totalMachines: rows.length,
-      machines: machineList
-    };
-    console.log(`📤 Search Result for ${companyName}:`, responseData);
-    res.json(responseData);
+      response
+    });
 
   } catch (err) {
-
     console.error(err);
 
     res.status(500).json({
+      success: false,
       error: err.message
     });
-
   }
 });
 
