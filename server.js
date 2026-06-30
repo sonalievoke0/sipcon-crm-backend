@@ -243,13 +243,11 @@ app.post('/api/search', async (req, res) => {
       .join('\n');
 
     const response = `
-Company: ${companyName}
-
-Name: ${rows[0].name}
-Mail ID: ${rows[0].mail_ID}
-Contact Number: ${rows[0].contact_number}
-
-Machines:
+*Company:* ${companyName}
+*Authorised Contact Person:* ${rows[0].name}
+*Mail ID:* ${rows[0].mail_ID}
+*Contact Number:* ${rows[0].contact_number}
+*Machines Purchased:*
 ${machineList}
 `.trim();
 
