@@ -211,19 +211,19 @@ app.post('/api/search', async (req, res) => {
 
     const companyName = req.params.companyName || req.body.companyName;
 
-    const [rows] = await db.execute(
-      `
-      SELECT DISTINCT
-        name,
-        machine_details,
-        DOI,
-        mail_ID,
-        contact_number
-      FROM machines
-      WHERE company_name LIKE ?
-      `,
-      [`%${companyName}%`]
-    );
+  const [rows] = await db.execute(
+  `
+  SELECT DISTINCT
+    name,
+    machine_details,
+    DOI,
+    mail_ID,
+    contact_number
+  FROM machines
+  WHERE company_name = ?
+  `,
+  [companyName]
+);
 
     if (!rows.length) {
       const errorRes = {
