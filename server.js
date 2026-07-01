@@ -255,6 +255,7 @@ ${machineList}
       success: true,
       response :{
          message,
+         totalMachines: rows.length,
          mail_ID: rows[0].mail_ID
       }
     });
@@ -382,7 +383,7 @@ app.post('/api/add-ticket', async (req, res) => {
     }
 
     // Check if Ticket ID already exists
-    const [existing] = await db.execute(
+    const [existing] = await db.executeWithRetry(
       'SELECT Ticket_ID FROM Tickets WHERE Ticket_ID = ?',
       [Ticket_ID]
     );
@@ -394,7 +395,7 @@ app.post('/api/add-ticket', async (req, res) => {
       });
     }
 
-   const [result] = await db.execute(
+   const [result] = await db.executeWithRetry(
   `
   INSERT INTO Tickets
   (
@@ -418,7 +419,7 @@ app.post('/api/add-ticket', async (req, res) => {
 );
 
 // Create corresponding Call Log entry
-await db.execute(
+await db.executeWithRetry(
   `
   INSERT INTO callLogs
   (
