@@ -528,7 +528,7 @@ app.put('/api/update-call-log', async (req, res) => {
     const {
       Ticket_ID,
       call,
-      callDate,
+      Date,
       callStatus,
       duration
     } = req.body;
@@ -540,52 +540,48 @@ app.put('/api/update-call-log', async (req, res) => {
       });
     }
 
-    let query = '';
-    let values = [];
-
-    switch (call.toLowerCase()) {
-      case 'first':
-        query = `
-          UPDATE callLogs
-          SET
-            firstCallDate = ?,
-            firstCallStatus = ?,
-            firstDuration = ?
-          WHERE Ticket_ID = ?
-        `;
-        values = [callDate, callStatus, duration, Ticket_ID];
-        break;
-
-      case 'second':
-        query = `
-          UPDATE callLogs
-          SET
-            secondCallDate = ?,
-            secondCallStatus = ?,
-            secondDuration = ?
-          WHERE Ticket_ID = ?
-        `;
-        values = [callDate, callStatus, duration, Ticket_ID];
-        break;
-
-      case 'third':
-        query = `
-          UPDATE callLogs
-          SET
-            thirdCallDate = ?,
-            thirdCallStatus = ?,
-            thirdDuration = ?
-          WHERE Ticket_ID = ?
-        `;
-        values = [callDate, callStatus, duration, Ticket_ID];
-        break;
-
-      default:
-        return res.status(400).json({
-          success: false,
-          message: 'call must be First, Second or Third.'
-        });
+    const validCalls = ['first', 'second', 'third'];
+    const callType = call.toLowerCase();
+    if (!validCalls.includes(callType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'call must be First, Second or Third.'
+      });
     }
+
+    const setClauses = [];
+    const values = [];
+
+    if (Date) {
+      setClauses.push('`Date` = ?');
+      values.push(Date);
+    }
+
+    if (callStatus) {
+      const col = callType === 'first' ? 'firstCallStatus' : callType === 'second' ? 'secondCallStatus' : 'thirdCallStatus';
+      setClauses.push(`\`${col}\` = ?`);
+      values.push(callStatus);
+    }
+
+    if (duration) {
+      const col = callType === 'first' ? 'firstDuration' : callType === 'second' ? 'secondDuration' : 'thirdDuration';
+      setClauses.push(`\`${col}\` = ?`);
+      values.push(duration);
+    }
+
+    if (setClauses.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one field (Date, callStatus, duration) is required.'
+      });
+    }
+
+    values.push(Ticket_ID);
+    const query = `
+      UPDATE callLogs
+      SET ${setClauses.join(', ')}
+      WHERE Ticket_ID = ?
+    `;
 
     const [result] = await db.execute(query, values);
 
