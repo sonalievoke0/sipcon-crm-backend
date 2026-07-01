@@ -259,6 +259,9 @@ ${machineList}
       }
     });
 
+    console.log(`🔎 Search for company '${companyName}' returned ${rows.length} machines.`);
+
+
   } catch (err) {
     console.error(err);
 
