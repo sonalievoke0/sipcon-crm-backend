@@ -242,7 +242,7 @@ app.post('/api/search', async (req, res) => {
       .map((row, index) => `${index + 1}. ${row.machine_details} - ${row.DOI}`)
       .join('\n');
 
-    const response = `
+    const message = `
 *Company:* ${companyName}
 *Authorised Contact Person:* ${rows[0].name}
 *Mail ID:* ${rows[0].mail_ID}
@@ -253,7 +253,10 @@ ${machineList}
 
     res.json({
       success: true,
-      response
+      response :{
+         message,
+         mail_ID: rows[0].mail_ID
+      }
     });
 
   } catch (err) {
